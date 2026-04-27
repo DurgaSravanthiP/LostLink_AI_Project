@@ -1,12 +1,27 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Home, Search, PlusCircle, MessageCircle, User, LogOut, Bell } from 'lucide-react';
+import { Home, Search, PlusCircle, MessageCircle, User, LogOut, Bell, Sun, Moon } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const Navbar = () => {
     const navigate = useNavigate();
     const { user, logout } = useAuth();
     const location = useLocation();
+
+    const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark');
+
+    useEffect(() => {
+        if (theme === 'light') {
+            document.body.classList.add('light-mode');
+        } else {
+            document.body.classList.remove('light-mode');
+        }
+        localStorage.setItem('theme', theme);
+    }, [theme]);
+
+    const toggleTheme = () => {
+        setTheme(theme === 'dark' ? 'light' : 'dark');
+    };
 
     return (
         <nav className="fixed top-0 left-0 right-0 z-50 px-6 py-3">
@@ -41,6 +56,9 @@ const Navbar = () => {
                                     {item.name}
                                 </Link>
                             ))}
+                            <button onClick={toggleTheme} className="p-2.5 hover:bg-white/10 text-lavender/60 hover:text-white rounded-full transition-all">
+                                {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+                            </button>
                             <div className="w-px h-6 bg-white/10 mx-2"></div>
                             <Link to="/profile" className="flex items-center space-x-2 px-4 py-2.5 rounded-full hover:bg-white/10 transition-all text-xs font-black uppercase tracking-widest text-lavender/60 hover:text-white">
                                 <User size={16} />
@@ -58,6 +76,9 @@ const Navbar = () => {
                             <a href="/#how-it-works" className="px-5 py-2.5 rounded-full text-xs font-black uppercase tracking-widest text-lavender/70 hover:text-white hover:bg-white/10 transition-all">
                                 Process
                             </a>
+                            <button onClick={toggleTheme} className="p-2.5 hover:bg-white/10 text-lavender/60 hover:text-white rounded-full transition-all mx-1">
+                                {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+                            </button>
                             <div className="w-px h-6 bg-white/10 mx-1"></div>
                             <Link to="/login" className="px-6 py-2.5 rounded-full text-xs font-black uppercase tracking-widest bg-electric-blue text-white hover:bg-blue-500 shadow-lg shadow-blue-500/30 transition-all">
                                 Login

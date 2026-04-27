@@ -25,11 +25,13 @@ export const AuthProvider = ({ children }) => {
                 setToken(storedToken);
                 setUser(res.data);
                 localStorage.setItem('user', JSON.stringify(res.data));
+                localStorage.setItem('userName', res.data.name);
             } catch (err) {
                 // Token is invalid / expired / server unreachable — clear stale session
                 console.warn('Stored session is invalid, logging out.');
                 localStorage.removeItem('token');
                 localStorage.removeItem('user');
+                localStorage.removeItem('userName');
                 delete axios.defaults.headers.common['x-auth-token'];
                 setToken(null);
                 setUser(null);
@@ -46,6 +48,7 @@ export const AuthProvider = ({ children }) => {
         setUser(res.data.user);
         localStorage.setItem('token', res.data.token);
         localStorage.setItem('user', JSON.stringify(res.data.user));
+        localStorage.setItem('userName', res.data.user.name);
         axios.defaults.headers.common['x-auth-token'] = res.data.token;
     };
 
@@ -55,6 +58,7 @@ export const AuthProvider = ({ children }) => {
         setUser(res.data.user);
         localStorage.setItem('token', res.data.token);
         localStorage.setItem('user', JSON.stringify(res.data.user));
+        localStorage.setItem('userName', res.data.user.name);
         axios.defaults.headers.common['x-auth-token'] = res.data.token;
     };
 
@@ -62,6 +66,7 @@ export const AuthProvider = ({ children }) => {
         const res = await axios.put('http://localhost:5000/api/auth/profile', profileData);
         setUser(res.data);
         localStorage.setItem('user', JSON.stringify(res.data));
+        localStorage.setItem('userName', res.data.name);
         return res.data;
     };
 
@@ -70,6 +75,7 @@ export const AuthProvider = ({ children }) => {
         setUser(null);
         localStorage.removeItem('token');
         localStorage.removeItem('user');
+        localStorage.removeItem('userName');
         delete axios.defaults.headers.common['x-auth-token'];
     };
 

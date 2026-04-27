@@ -254,7 +254,7 @@ const ReportItem = ({ type }) => {
                                         value={formData.category}
                                         onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                                     >
-                                        {categories.map(c => <option key={c} value={c} className="bg-indigo-900">{c}</option>)}
+                                        {categories.map(c => <option key={c} value={c} className="text-inherit">{c}</option>)}
                                     </select>
                                 </div>
                             </div>

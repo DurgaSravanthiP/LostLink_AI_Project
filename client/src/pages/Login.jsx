@@ -26,18 +26,18 @@ const Login = () => {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center px-4 pt-24 pb-12">
+        <div className="min-h-screen flex items-center justify-center px-4 pt-16 pb-4">
             <motion.div 
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="glass-card max-w-lg w-full p-10 relative overflow-hidden"
+                className="glass-card max-w-2xl w-full p-6 relative overflow-hidden"
             >
                 <div className="relative z-10">
-                    <div className="text-center mb-10">
-                        <div className="w-16 h-16 bg-electric-blue/20 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                            <ShieldCheck size={32} className="text-electric-blue" />
+                    <div className="text-center mb-4">
+                        <div className="w-12 h-12 bg-electric-blue/20 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                            <ShieldCheck size={24} className="text-electric-blue" />
                         </div>
-                        <h2 className="text-3xl font-black mb-3 italic tracking-tight uppercase">Welcome Back</h2>
+                        <h2 className="text-2xl font-black mb-1 italic tracking-tight uppercase">Welcome Back</h2>
                         <p className="text-lavender/40 text-sm font-medium tracking-wide">Reconnect with your lost items</p>
                     </div>
 
@@ -83,7 +83,7 @@ const Login = () => {
                         </button>
                     </form>
 
-                    <div className="mt-10 pt-10 border-t border-white/5 text-center">
+                    <div className="mt-4 pt-4 border-t border-white/5 text-center">
                         <p className="text-lavender/40 text-sm">
                             Don't have an account? <Link to="/signup" className="text-electric-blue hover:text-white transition-colors font-black uppercase tracking-widest ml-1 text-xs">Sign up now</Link>
                         </p>

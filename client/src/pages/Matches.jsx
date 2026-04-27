@@ -97,24 +97,31 @@ const MatchCard = ({ match, newItem }) => {
                     )}
 
                     <div className="mt-auto">
-                        {!match.alreadyMatched && (
-                            <div className="bg-white/[0.03] rounded-xl p-3 mb-5 text-[10px] text-lavender/40 space-y-1">
-                                <div className="font-black text-lavender/60 uppercase tracking-widest mb-2">Why AI matched this:</div>
-                                <div>📝 Text similarity: <span className="text-white">{match.aiExplanation?.descriptionSimilarity ?? Math.round(score * 0.4)}%</span></div>
-                                <div>🔤 Title fuzzy match: <span className="text-white">{match.aiExplanation?.fuzzyMatch ?? Math.round(score * 0.2)}%</span></div>
-                                <div>🗺️ Location match: <span className="text-white">{match.aiExplanation?.locationSimilarity ?? Math.round(score * 0.2)}%</span></div>
-                            </div>
-                        )}
+
 
                         {error && <p className="text-red-400 text-[10px] font-bold bg-red-400/10 p-2 rounded-lg border border-red-400/20 text-center mb-3">{error}</p>}
 
                         {match.alreadyMatched ? (
-                            <div className="w-full py-3 rounded-xl bg-green-500/10 border border-green-500/20 text-green-400 text-[10px] font-black uppercase tracking-widest text-center flex items-center justify-center space-x-2">
-                                <CheckCircle size={14} /><span>Item Successfully Claimed & Verified ✓</span>
+                            <div className="w-full p-4 rounded-xl bg-green-500/10 border border-green-500/20 text-green-400 text-center space-y-3">
+                                <div className="text-[10px] font-black uppercase tracking-widest flex items-center justify-center space-x-2">
+                                    <CheckCircle size={14} /><span>Verified Match ✓</span>
+                                </div>
+                                <div className="space-y-1">
+                                    <p className="text-[10px] font-bold text-lavender/60">Contact the finder at:</p>
+                                    <p className="text-sm font-black text-white bg-green-500/20 py-2 px-4 rounded-lg inline-block select-all cursor-copy">{item.user?.email || "Email Hidden"}</p>
+                                </div>
+                                <p className="text-[8px] uppercase tracking-widest text-lavender/40 leading-tight">Mention you verified successfully on LostLink</p>
                             </div>
                         ) : claimed ? (
-                            <div className="w-full py-3 rounded-xl bg-green-500/10 border border-green-500/20 text-green-400 text-[10px] font-black uppercase tracking-widest text-center flex items-center justify-center space-x-2">
-                                <CheckCircle size={14} /><span>Verification Successful! Item Matched ✓</span>
+                            <div className="w-full p-4 rounded-xl bg-green-500/10 border border-green-500/20 text-green-400 text-center space-y-3">
+                                <div className="text-[10px] font-black uppercase tracking-widest flex items-center justify-center space-x-2">
+                                    <CheckCircle size={14} /><span>Verification Successful! ✓</span>
+                                </div>
+                                <div className="space-y-1">
+                                    <p className="text-[10px] font-bold text-lavender/60">Please contact the finder to collect your item:</p>
+                                    <p className="text-sm font-black text-white bg-green-500/20 py-2 px-4 rounded-lg inline-block select-all cursor-copy">{item.user?.email || "Email Hidden"}</p>
+                                </div>
+                                <p className="text-[8px] uppercase tracking-widest text-lavender/40 leading-tight">Tell them you successfully verified the ownership questions</p>
                             </div>
                         ) : newItem.type === 'lost' && item.type === 'found' ? (
                             <button onClick={handleClaim} disabled={claiming}
@@ -190,25 +197,53 @@ const Matches = () => {
         }
     }, [location.state]);
 
-    // Fetch live matches from server when we have an item
     useEffect(() => {
-        const fetchMatches = async () => {
+        const fetchMatch = async () => {
             if (!context.newItem?._id) return;
+    
             setLoadingMatches(true);
+    
             try {
                 const token = localStorage.getItem('token');
-                const res = await axios.get(`http://localhost:5000/api/items/${context.newItem._id}/matches`, {
-                    headers: { 'x-auth-token': token }
-                });
-                setLiveMatches(res.data);
-            } catch (err) { console.error('Failed to fetch live matches:', err); }
-            finally { setLoadingMatches(false); }
+    
+                const res = await axios.get(
+                    `http://localhost:5000/api/items/my-items`,
+                    { headers: { 'x-auth-token': token } }
+                );
+    
+                const allItems = res.data;
+    
+                // find current item
+                const currentItem = allItems.find(i => i._id === context.newItem._id);
+    
+                if (currentItem && currentItem.matchId) {
+                    // find matched item
+                    const matchedItem = await axios.get(
+                        `http://localhost:5000/api/items/${currentItem.matchId}`,
+                        { headers: { 'x-auth-token': token } }
+                    );
+    
+                    setLiveMatches([{
+                        item: matchedItem.data,
+                        score: currentItem.matchScore,
+                        alreadyMatched: true
+                    }]);
+                } else {
+                    setLiveMatches([]);
+                }
+    
+            } catch (err) {
+                console.error(err);
+            } finally {
+                setLoadingMatches(false);
+            }
         };
-        fetchMatches();
+    
+        fetchMatch();
     }, [context.newItem?._id]);
 
     const { newItem, mode } = context;
-    const displayMatches = liveMatches || context.matches || [];
+    const displayMatches = liveMatches || [];
 
     if (!newItem) {
         return (
@@ -238,7 +273,7 @@ const Matches = () => {
                     {isLoser ? <Search size={18} /> : <Hand size={18} />}
                     <span className="text-sm font-bold">{isLoser ? 'Your Lost Item Report' : 'Your Found Item Report'}</span>
                 </div>
-                <h1 className="text-4xl font-black mb-4 tracking-tight">AI Match Results</h1>
+                <h1 className="text-4xl font-black mb-4 tracking-tight">AI Verified Matches</h1>
                 <p className="text-lavender/60">
                     {loadingMatches ? 'Scanning for matches...' : (() => {
                         const matchedCount = displayMatches.filter(m => m.alreadyMatched).length;
@@ -270,7 +305,7 @@ const Matches = () => {
             ) : (
                 <div className="glass-card p-16 text-center max-w-lg mx-auto">
                     <AlertCircle size={48} className="mx-auto mb-4 text-lavender/20" />
-                    <h3 className="text-xl font-bold mb-2">No Matches Found Yet</h3>
+                    <h3 className="text-xl font-bold mb-2">No AI Matches Yet</h3>
                     <p className="text-lavender/50 max-w-md mx-auto mb-8 text-sm">
                         Don't worry! Our AI keeps scanning. As soon as a matching {oppositeLabel} item is reported, you'll see it here.
                     </p>

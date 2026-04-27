@@ -40,18 +40,18 @@ const Signup = () => {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center px-4 pt-24 pb-12">
+        <div className="min-h-screen flex items-center justify-center px-4 pt-16 pb-4">
             <motion.div 
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="glass-card max-w-lg w-full p-10 relative overflow-hidden"
+                className="glass-card max-w-3xl w-full p-6 relative overflow-hidden"
             >
                 <div className="relative z-10">
-                    <div className="text-center mb-10">
-                        <div className="w-16 h-16 bg-electric-blue/20 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                            <UserPlus size={32} className="text-electric-blue" />
+                    <div className="text-center mb-4">
+                        <div className="w-12 h-12 bg-electric-blue/20 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                            <UserPlus size={24} className="text-electric-blue" />
                         </div>
-                        <h2 className="text-3xl font-black mb-3">Create Account</h2>
+                        <h2 className="text-2xl font-black mb-1">Create Account</h2>
                         <p className="text-lavender/40 text-sm">Join the campus lost and found community</p>
                     </div>
 
@@ -106,7 +106,7 @@ const Signup = () => {
                         </button>
                     </form>
 
-                    <p className="mt-10 text-center text-lavender/40 text-sm">
+                    <p className="mt-4 text-center text-lavender/40 text-sm">
                         Already have an account? <Link to="/login" className="text-electric-blue hover:text-white transition-colors font-bold ml-1">Log in</Link>
                     </p>
                 </div>

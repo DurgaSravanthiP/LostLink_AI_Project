@@ -39,7 +39,7 @@ const App = () => {
     return (
         <AuthProvider>
             <Router>
-                <div className="min-h-screen bg-indigo-950 text-lavender font-sans selection:bg-electric-blue/30">
+                <div className="min-h-screen font-sans selection:bg-electric-blue/30">
                     <Navbar />
                     <Routes>
                         <Route path="/login" element={<Login />} />

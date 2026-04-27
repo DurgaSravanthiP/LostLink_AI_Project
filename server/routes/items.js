@@ -3,7 +3,8 @@ const router = express.Router();
 const jwt = require('jsonwebtoken');
 const Item = require('../models/Item');
 const User = require('../models/User');
-const { findMatches } = require('../utils/aiMatch');
+const axios = require('axios');
+const JWT_SECRET = process.env.JWT_SECRET || 'lostlink_secret_fallback_123';
 
 const sanitizeVerificationQuestions = (questions = []) => {
     return questions
@@ -16,7 +17,7 @@ const auth = (req, res, next) => {
     const token = req.header('x-auth-token');
     if (!token) return res.status(401).json({ message: 'No token, authorization denied' });
     try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const decoded = jwt.verify(token, JWT_SECRET);
         req.user = decoded.id;
         next();
     } catch (err) {
@@ -40,6 +41,21 @@ router.post('/report', auth, async (req, res) => {
         }
 
         const newItem = new Item(itemData);
+        
+        // ⭐ NEW: Infer Priority using Forward Chaining Agent (Unit 1 & 3 Concept)
+        try {
+            const priorityRes = await axios.post('http://localhost:8000/infer-priority', {
+                title: newItem.title,
+                description: newItem.description,
+                location: newItem.location,
+                category: newItem.category
+            });
+            newItem.urgencyLevel = priorityRes.data.urgencyLevel;
+            newItem.inferenceReason = priorityRes.data.inferenceReason;
+        } catch (err) {
+            console.error("AI Priority Inference failed:", err.message);
+        }
+
         await newItem.save();
 
         // Trigger AI matching — match against opposite type
@@ -50,7 +66,50 @@ router.post('/report', auth, async (req, res) => {
             user: { $ne: req.user }   // exclude own items
         }).populate('user', 'name email');
 
-        const matches = findMatches(newItem, potentialMatches);
+        let matches = [];
+        if (potentialMatches.length > 0) {
+            const aiResponse = await axios.post('http://localhost:8000/match', {
+                new_item: {
+                    title: newItem.title,
+                    description: newItem.description,
+                    location: newItem.location,
+                    category: newItem.category
+                },
+                existing_items: potentialMatches.map(item => ({
+                    title: item.title,
+                    description: item.description,
+                    location: item.location,
+                    category: item.category
+                }))
+            });
+
+            matches = aiResponse.data.map(m => ({
+                index: m.index,
+                item: potentialMatches[m.index],
+                score: m.score,
+                aiExplanation: { descriptionSimilarity: m.score, fuzzyMatch: m.score, locationSimilarity: m.score, timeRelevance: 100 }
+            })).sort((a, b) => b.score - a.score);
+
+            if (matches.length > 0) {
+                const bestMatch = matches[0];
+
+                if (bestMatch.score > 60) {
+                    const matchedItem = potentialMatches[bestMatch.index];
+
+                    newItem.status = "matched";
+                    newItem.matchId = matchedItem._id;
+                    newItem.matchScore = bestMatch.score;
+
+                    await newItem.save();
+
+                    await Item.findByIdAndUpdate(matchedItem._id, {
+                        status: "matched",
+                        matchId: newItem._id,
+                        matchScore: bestMatch.score
+                    });
+                }
+            }
+        }
 
         res.status(201).json({ item: newItem, matches });
     } catch (err) {
@@ -151,7 +210,21 @@ router.get('/notifications', auth, async (req, res) => {
                 status: 'active',
                 user: { $ne: req.user }
             });
-            const matches = findMatches(item, potentialMatches);
+            let matches = [];
+            if (potentialMatches.length > 0) {
+                const aiResponse = await axios.post('http://localhost:8000/match', {
+                    new_item: { title: item.title, description: item.description, location: item.location, category: item.category },
+                    existing_items: potentialMatches.map(p => ({ title: p.title, description: p.description, location: p.location, category: p.category }))
+                });
+                matches = aiResponse.data
+                    .map(m => ({
+                        item: potentialMatches[m.index],
+                        score: Math.round(m.score),
+                        aiExplanation: { descriptionSimilarity: Math.round(m.score), fuzzyMatch: Math.round(m.score), locationSimilarity: Math.round(m.score), timeRelevance: 100 }
+                    }))
+                    .filter(m => m.score >= 10)
+                    .sort((a, b) => b.score - a.score);
+            }
             if (matches.length > 0) {
                 notifications.push({
                     item,
@@ -184,7 +257,21 @@ router.get('/:id/matches', auth, async (req, res) => {
             user: { $ne: item.user }
         }).populate('user', 'name email');
 
-        const matches = findMatches(item, potentialMatches);
+        let matches = [];
+        if (potentialMatches.length > 0) {
+            const aiResponse = await axios.post('http://localhost:8000/match', {
+                new_item: { title: item.title, description: item.description, location: item.location, category: item.category },
+                existing_items: potentialMatches.map(p => ({ title: p.title, description: p.description, location: p.location, category: p.category }))
+            });
+            matches = aiResponse.data
+                .map(m => ({
+                    item: potentialMatches[m.index],
+                    score: Math.round(m.score),
+                    aiExplanation: { descriptionSimilarity: Math.round(m.score), fuzzyMatch: Math.round(m.score), locationSimilarity: Math.round(m.score), timeRelevance: 100 }
+                }))
+                .filter(m => m.score >= 10)
+                .sort((a, b) => b.score - a.score);
+        }
 
         // Also find already-matched items (verified claims) for this item
         const alreadyMatchedItems = [];
@@ -355,6 +442,18 @@ router.post('/:id/verify', auth, async (req, res) => {
         }
 
         res.json({ message: 'Incorrect answers. Please try again.', success: false });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+// ─────────────────────────────────────────────
+// GET /:id — Get item by id
+// ─────────────────────────────────────────────
+router.get('/:id', auth, async (req, res) => {
+    try {
+        const item = await Item.findById(req.params.id).populate('user', 'name email');
+        res.json(item);
     } catch (err) {
         res.status(500).json({ message: err.message });
     }

@@ -345,7 +345,7 @@ const Activity = () => {
                 <div className="md:col-span-3">
                     <select className="input-field py-3.5 text-sm appearance-none" value={selectedCategory}
                         onChange={(e) => setSelectedCategory(e.target.value)}>
-                        {categoriesList.map(c => <option key={c} value={c} className="bg-indigo-900">{c}</option>)}
+                        {categoriesList.map(c => <option key={c} value={c} className="text-inherit">{c}</option>)}
                     </select>
                 </div>
             </div>

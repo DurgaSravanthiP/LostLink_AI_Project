@@ -22,6 +22,11 @@ const ItemSchema = new mongoose.Schema({
         status: { type: String, enum: ['pending', 'verified', 'rejected'], default: 'pending' },
         createdAt: { type: Date, default: Date.now }
     }],
+    matchId: { type: mongoose.Schema.Types.ObjectId, ref: 'Item' },
+    matchScore: { type: Number, default: 0 },
+    urgencyLevel: { type: String, enum: ['Low', 'High', 'Critical'], default: 'Low' },
+    inferenceReason: { type: String, default: 'Standard item.' },
+    aiProcessed: { type: Boolean, default: false },
     createdAt: { type: Date, default: Date.now }
 });
 
