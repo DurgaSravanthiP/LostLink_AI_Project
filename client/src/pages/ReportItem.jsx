@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MapPin, Calendar, Clock, Tag, HelpCircle, ArrowRight, Package, Info, CheckCircle2, ShieldQuestion, Camera, Loader2, Sparkles } from 'lucide-react';
+import { MapPin, Calendar, Tag, ArrowRight, Package, Info, CheckCircle2, ShieldQuestion, Camera, Loader2, Sparkles } from 'lucide-react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import * as tf from '@tensorflow/tfjs';
@@ -29,7 +29,6 @@ const classMap = {
 
 const ReportItem = ({ type }) => {
     const navigate = useNavigate();
-    const imageRef = useRef(null);
     const [formData, setFormData] = useState({
         title: '',
         category: categories[0],
@@ -67,7 +66,6 @@ const ReportItem = ({ type }) => {
         const file = e.target.files[0];
         if (!file) return;
 
-        // For demo, we store as preview URL. In production, upload to S3/Cloudinary.
         const reader = new FileReader();
         reader.onload = async (event) => {
             const url = event.target.result;
@@ -284,7 +282,7 @@ const ReportItem = ({ type }) => {
                                     <input className="input-field" placeholder="e.g. Library 2nd Floor" value={formData.location} onChange={(e) => setFormData({ ...formData, location: e.target.value })} required />
                                 </div>
                                 <div className="space-y-3">
-                                    <label className="text-[10px] font-black uppercase tracking-widest text-lavender/60 flex items-center"><Clock size={14} className="mr-2 text-electric-blue" /> Color</label>
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-lavender/60 flex items-center"><Tag size={14} className="mr-2 text-electric-blue" /> Color</label>
                                     <input className="input-field" placeholder="e.g. Navy Blue" value={formData.color} onChange={(e) => setFormData({ ...formData, color: e.target.value })} />
                                 </div>
                             </div>

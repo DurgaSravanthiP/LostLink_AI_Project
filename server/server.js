@@ -12,7 +12,7 @@ app.use(cors({
     origin: '*',
     credentials: true
 }));
-app.use(express.json({ limit: '10mb' })); // 10mb limit for base64 images
+app.use(express.json({ limit: '10mb' }));
 
 const Message = require('./models/Message');
 
@@ -49,16 +49,14 @@ mongoose.connect(process.env.MONGODB_URI)
 
             socket.on("send_message", async (data) => {
                 try {
-                    // Save message to database
                     const newMessage = new Message({
                         roomId: data.roomId,
-                        sender: data.sender, // The real user name
+                        sender: data.sender,
                         message: data.message,
                         time: data.time
                     });
                     await newMessage.save();
 
-                    // Broadcast to others in the room
                     socket.to(data.roomId).emit("receive_message", data);
                 } catch (err) {
                     console.error("Socket error:", err);

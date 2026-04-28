@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { io } from 'socket.io-client';
-import { Send, User, MessageCircle, ArrowLeft } from 'lucide-react';
+import { Send, User, MessageCircle, ArrowLeft, Package, ShieldQuestion, CheckCircle2, XCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -14,6 +14,12 @@ const Messages = () => {
     const [messages, setMessages] = useState([]);
     const [loading, setLoading] = useState(true);
     const socketRef = useRef();
+
+    // Verification state
+    const [verifyAnswers, setVerifyAnswers] = useState([]);
+    const [verifying, setVerifying] = useState(false);
+    const [verifyError, setVerifyError] = useState('');
+    const [verifySuccess, setVerifySuccess] = useState(false);
 
     // Fetch all matched items for the sidebar
     useEffect(() => {
@@ -37,6 +43,15 @@ const Messages = () => {
         };
         fetchMatches();
     }, []);
+
+    // When selectedItem changes, reset verify state and init answers array
+    useEffect(() => {
+        if (!selectedItem) return;
+        setVerifyError('');
+        setVerifySuccess(!!selectedItem.verificationSuccess);
+        const qCount = selectedItem.verificationQuestions?.length || 0;
+        setVerifyAnswers(Array(qCount).fill(''));
+    }, [selectedItem?._id]);
 
     // Socket.io Connection & History Fetching
     useEffect(() => {
@@ -96,21 +111,62 @@ const Messages = () => {
         }
     };
 
-    const handleVerification = async (answers) => {
+    // Handle ownership verification with proper claim-first logic
+    const handleVerification = async (e) => {
+        e.preventDefault();
+        setVerifying(true);
+        setVerifyError('');
+
+        const token = localStorage.getItem('token');
+        const config = { headers: { 'x-auth-token': token } };
+
         try {
-            const token = localStorage.getItem('token');
-            const config = { headers: { 'x-auth-token': token } };
-            const res = await axios.post(`http://localhost:5000/api/items/${selectedItem._id}/verify`, { answers }, config);
-            
+            // Step 1: Ensure a claim exists. If this is an AI-auto-matched item,
+            // the claim record may be missing. We need our own lost item id.
+            // Get our own items and find the one that matches (our lost item → this found item).
+            const myItemsRes = await axios.get('http://localhost:5000/api/items/my-items', config);
+            const myItems = myItemsRes.data;
+
+            // The selectedItem is a FOUND item belonging to someone else.
+            // We need to find our LOST item that is matched to this found item.
+            const myLostItem = myItems.find(i =>
+                i.type === 'lost' &&
+                i.matchId &&
+                i.matchId.toString() === selectedItem._id.toString()
+            );
+
+            if (myLostItem) {
+                // Ensure claim exists (will be ignored if already claimed)
+                try {
+                    await axios.post(
+                        `http://localhost:5000/api/items/${selectedItem._id}/claim`,
+                        { claimerItemId: myLostItem._id },
+                        config
+                    );
+                } catch (claimErr) {
+                    // 400 = already claimed or own item, ignore and proceed
+                    if (claimErr.response?.status !== 400) throw claimErr;
+                }
+            }
+
+            // Step 2: Submit verification answers
+            const res = await axios.post(
+                `http://localhost:5000/api/items/${selectedItem._id}/verify`,
+                { answers: verifyAnswers },
+                config
+            );
+
             if (res.data.success) {
-                alert("Verification Successful! Ownership confirmed.");
-                // Update local status
+                setVerifySuccess(true);
                 setSelectedItem(prev => ({ ...prev, verificationSuccess: true }));
             } else {
-                alert("Incorrect answers. Please try again.");
+                setVerifyError(res.data.message || 'Incorrect answers. Please try again.');
             }
         } catch (err) {
             console.error("Verification error", err);
+            setVerifyError(err.response?.data?.message || 'Verification failed. Please try again.');
+        } finally {
+            setVerifying(false);
         }
     };
 
@@ -189,23 +245,63 @@ const Messages = () => {
                                 </div>
                             </div>
 
-                            {/* Verification Banner if needed */}
-                            {selectedItem.type === 'found' && !selectedItem.verificationSuccess && (
+                            {/* Verification Banner — shown for LOST item owners who need to verify */}
+                            {selectedItem.type === 'found' &&
+                             !verifySuccess &&
+                             selectedItem.verificationQuestions?.length > 0 && (
                                 <div className="p-6 bg-electric-blue/5 border-b border-electric-blue/10">
-                                    <div className="flex items-center gap-3 mb-4">
+                                    <div className="flex items-center gap-3 mb-3">
                                         <ShieldQuestion className="text-electric-blue" size={20} />
-                                        <h4 className="text-xs font-black uppercase tracking-widest text-electric-blue">Ownership Verification</h4>
+                                        <h4 className="text-xs font-black uppercase tracking-widest text-electric-blue">Ownership Verification Required</h4>
                                     </div>
-                                    <p className="text-[10px] text-lavender/60 mb-4 font-medium">The finder has set verification questions. Answer them to prove this item is yours.</p>
-                                    <button 
-                                        onClick={() => {
-                                            const answers = selectedItem.verificationQuestions.map(q => prompt(q.question));
-                                            if (answers.every(a => a !== null)) handleVerification(answers);
-                                        }}
-                                        className="btn-primary py-2 px-6 text-[10px] font-black uppercase tracking-widest"
-                                    >
-                                        Verify Ownership Now
-                                    </button>
+                                    <p className="text-[10px] text-lavender/60 mb-5 font-medium leading-relaxed">
+                                        The finder has set {selectedItem.verificationQuestions.length} verification question{selectedItem.verificationQuestions.length > 1 ? 's' : ''}. Answer them correctly to prove this item is yours and unlock the finder's contact.
+                                    </p>
+                                    <form onSubmit={handleVerification} className="space-y-4">
+                                        {selectedItem.verificationQuestions.map((q, i) => (
+                                            <div key={i} className="space-y-1.5">
+                                                <label className="text-[10px] font-black uppercase tracking-widest text-lavender/60 block">
+                                                    Q{i + 1}: {q.question}
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    className="input-field py-2.5 text-sm w-full"
+                                                    placeholder="Your answer..."
+                                                    value={verifyAnswers[i] || ''}
+                                                    onChange={(e) => {
+                                                        const updated = [...verifyAnswers];
+                                                        updated[i] = e.target.value;
+                                                        setVerifyAnswers(updated);
+                                                    }}
+                                                    required
+                                                />
+                                            </div>
+                                        ))}
+                                        {verifyError && (
+                                            <div className="flex items-center gap-2 text-red-400 text-[10px] font-bold bg-red-400/10 p-3 rounded-lg border border-red-400/20">
+                                                <XCircle size={14} />
+                                                {verifyError}
+                                            </div>
+                                        )}
+                                        <button
+                                            type="submit"
+                                            disabled={verifying || verifyAnswers.some(a => !a?.trim())}
+                                            className="btn-primary py-2.5 px-6 text-[10px] font-black uppercase tracking-widest disabled:opacity-50 disabled:grayscale flex items-center gap-2"
+                                        >
+                                            <ShieldCheck size={14} />
+                                            {verifying ? 'Verifying...' : 'Submit Answers & Verify Ownership'}
+                                        </button>
+                                    </form>
+                                </div>
+                            )}
+
+                            {/* Verification Success Banner */}
+                            {verifySuccess && (
+                                <div className="px-6 py-3 bg-green-500/10 border-b border-green-500/20 flex items-center gap-3">
+                                    <CheckCircle2 size={16} className="text-green-400" />
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-green-400">
+                                        Ownership Verified ✓ — You can now coordinate the return below
+                                    </span>
                                 </div>
                             )}
 
@@ -213,7 +309,7 @@ const Messages = () => {
                             <div className="flex-1 overflow-y-auto p-6 space-y-6">
                                 <div className="text-center">
                                     <span className="px-4 py-1.5 bg-white/5 rounded-full text-[10px] font-black uppercase tracking-widest text-lavender/30 border border-white/5">
-                                        End-to-End Encrypted • {selectedItem.verificationSuccess ? "Verified" : "Pending Verification"}
+                                        End-to-End Encrypted • {verifySuccess ? "Verified" : "Pending Verification"}
                                     </span>
                                 </div>
 
@@ -288,8 +384,5 @@ const Messages = () => {
         </div>
     );
 };
-
-// Add ShieldQuestion to imports
-import { Package, ShieldQuestion } from 'lucide-react';
 
 export default Messages;

@@ -102,6 +102,26 @@ router.post('/report', auth, async (req, res) => {
 
                     await newItem.save();
 
+                    // Determine which item is 'found' and which is 'lost'
+                    // The found item holds verificationQuestions & claims.
+                    // The claimer is always the owner of the LOST item.
+                    const foundItem = newItem.type === 'found' ? newItem : matchedItem;
+                    const lostItem  = newItem.type === 'lost'  ? newItem : matchedItem;
+
+                    // Insert a claim record on the found item so /verify can work
+                    const alreadyClaimed = foundItem.claims?.find(
+                        c => c.user.toString() === lostItem.user.toString()
+                    );
+                    if (!alreadyClaimed) {
+                        foundItem.claims = foundItem.claims || [];
+                        foundItem.claims.push({
+                            user: lostItem.user,
+                            claimerItemId: lostItem._id,
+                            status: 'pending'
+                        });
+                        await foundItem.save();
+                    }
+
                     await Item.findByIdAndUpdate(matchedItem._id, {
                         status: "matched",
                         matchId: newItem._id,

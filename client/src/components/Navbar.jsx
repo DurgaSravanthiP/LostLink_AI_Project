@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Home, Search, PlusCircle, MessageCircle, User, LogOut, Bell, Sun, Moon } from 'lucide-react';
+import { Search, User, LogOut, Sun, Moon } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const Navbar = () => {
